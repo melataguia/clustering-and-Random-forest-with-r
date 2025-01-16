@@ -4,6 +4,7 @@ library(cluster)
 library(ggplot2)
 library(datasets)
 library(dplyr)
+library(rgl)
 
 
 
@@ -15,58 +16,36 @@ summary(data)
 
 # verification des valeurs absentes
 is.na(data)
+sum(is.na(data))
 str(data)
 
 
 # Calcul de la matrice de distances
-distance_matrix <- get_dist(data, method = "euclidean")  # Méthode par défaut : euclidienne
+distance <- get_dist(data, method = "euclidean")
 
 # Visualisation de la matrice de distances
-fviz_dist(distance_matrix, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) +
+fviz_dist(distance) +
   labs(title = "Matrice de distances (méthode euclidienne)")
 
 
 # Normalisation des données
 data_normalized <- scale(data)
-
+summary(data_normalized)
 
 # Calcul de la matrice de distances après normalisation
-distance_matrix_normalized <- get_dist(data_normalized, method = "euclidean")
+distance2<- get_dist(data_normalized, method = "euclidean")
 
 
 # Visualisation de la matrice de distances normalisées
-fviz_dist(distance_matrix_normalized, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) +
-  labs(title = "Matrice de distances (normalisées_m)")
+#fviz_dist(distance2) +
+  #labs(title = "Matrice de distances (normalisées_m)")
 
 
 
 
 
-
-# 3. Nombre optimal de clusters : méthode du coude ----
-# Methode du coude à la main
-valeursK = 2:15
-sommeCarresTotale = array(NA, length(valeursK))
-
-for (i in 1:length(valeursK)){
-  sommeCarresTotale[i] = kmeans(data_normalized, centers = valeursK[i], nstart = 100)$tot.withinss
-}
-
-toPlot = tibble(K = valeursK, metrique = sommeCarresTotale)
-ggplot(toPlot) + 
-  geom_point(aes(x = K, y = metrique)) + 
-  geom_line(aes(x = K, y = metrique))
-
-# Methode du coude avec une fonction
+# 3. Nombre optimal de clusters : méthode du coude ## avec fonction
 fviz_nbclust(data_normalized, FUNcluster = kmeans, method = "wss", k.max = 15)
-
-
-
-
-
-
-
-
 
 
 
@@ -83,9 +62,9 @@ for (i in 1:length(K_values)) {
 }
 
 # Visualiser les résultats (somme des distances intra-clusters en fonction de K)
-plot(K_values, dintra_values, type = "b", pch = 19, col = "blue", 
-     xlab = "Nombre de clusters (K)", ylab = "Totale des distances intra-cluster",
-     main = "Elbow Method (Coude) pour K-means", xaxt = "n")  # Empêcher la génération automatique de l'axe x
+plot(K_values, dintra_values, type = "b", pch = 19, 
+     xlab = "Nombre de clusters ", ylab = "Distances intra-cluster",
+     main = "Methode du coude pour notre Clustering", xaxt = "n")  # Empêcher la génération automatique de l'axe x
 
 # Ajouter un axe x avec des valeurs de 1 à 16
 axis(1, at = K_values, labels = K_values)
@@ -93,11 +72,7 @@ axis(1, at = K_values, labels = K_values)
 
 
 
-
-
-
-
-
+## Methode silhouette 
 # Créer un vecteur pour les valeurs de K à tester (par exemple de 2 à 15)
 K_values <- 2:15
 
@@ -120,9 +95,16 @@ for (i in 1:length(K_values)) {
 }
 
 # Visualiser les résultats (score de silhouette moyen en fonction de K)
-plot(K_values, silhouette_scores, type = "b", pch = 19, col = "blue", 
-     xlab = "Nombre de clusters (K)", ylab = "Score moyen de la silhouette",
-     main = "Méthode de la silhouette pour déterminer le nombre optimal de clusters")
+plot(K_values, silhouette_scores, type = "b", pch = 19, 
+     xlab = "Nombre de clusters", ylab = "Silhouette Moyenne",
+     main = "Méthode de la silhouette")
+
+
+
+
+
+
+
 
 
 
@@ -133,18 +115,14 @@ kmeans_result_normalized <- kmeans(data_normalized, centers = 2, nstart = 25)
 
 # Explorer la structure de l'objet résultant
 str(kmeans_result_normalized)
-
-# Visualiser les clusters obtenus avec les données normalisées
-fviz_cluster(kmeans_result_normalized, data = data_normalized, geom = "point", main = "K-means avec 2 clusters sur données normalisées")
-
-
+fviz_cluster(kmeans_result_normalized, data = data_normalized,geom = "point", main = "K-means avec 2 clusters sur données normalisées")
 
 # Appliquer K-means avec 3 clusters sur les données normalisées
 kmeans_result_3_normalized <- kmeans(data_normalized, centers = 3, nstart = 25)
 fviz_cluster(kmeans_result_3_normalized, data = data_normalized, geom = "point", main = "K-means avec 3 clusters sur données normalisées")
 
-# Appliquer K-means avec 5 clusters sur les données normalisées
-kmeans_result_4_normalized <- kmeans(data_normalized, centers = 5, nstart = 100)
+# Appliquer K-means avec 4 clusters sur les données normalisées
+kmeans_result_4_normalized <- kmeans(data_normalized, centers = 4, nstart = 100)
 fviz_cluster(kmeans_result_4_normalized, data = data_normalized, geom = "point", main = "K-means avec 4 clusters sur données normalisées")
 
 
@@ -153,16 +131,76 @@ fviz_cluster(kmeans_result_4_normalized, data = data_normalized, geom = "point",
 
 
 
+# Résultat K-means avec 3 clusters et introductions des centroides 
+kmeans_result_3_normalized <- kmeans(data_normalized, centers = 3, nstart = 1000)
+
+# Récupération des coordonnées des centroïdes
+centroids <- as.data.frame(kmeans_result_3_normalized$centers)
+
+# Renommer les colonnes pour correspondre aux axes du graphique
+colnames(centroids) <- colnames(data_normalized)
+
+# Calcul des distances entre les centroïdes
+distances_between_centroids <- dist(centroids)
+# Afficher les distances 
+print(distances_between_centroids)
+# Convertir les distances en une matrice complète 
+dist_matrix <- as.matrix(distances_between_centroids) 
 
 
-# Appliquer K-means clustering (par exemple avec 4 clusters)
-kmeans_result <- kmeans(data_normalized, centers = 4, nstart = 25)
+fviz_cluster(kmeans_result_3_normalized, 
+             data = data_normalized, 
+             geom = "point", 
+             main = "K-means avec 3 clusters sur données normalisées") +
+  geom_point(data = centroids, 
+             aes(x = centroids[[1]], y = centroids[[2]]), 
+             color = "red", 
+             size = 4, 
+             shape = 8) # Superposition des centroïdes
 
-# Visualisation des clusters
-fviz_cluster(kmeans_result, data = data_normalized,
-             geom = "point",  # Utiliser des points pour les observations
-             ellipse.type = "convex",  # Dessiner des ellipses convexes autour des clusters
-             main = "Visualisation des clusters avec K-means")
+# Afficher la matrice complète 
+print(dist_matrix)
+
+
+# Résultat K-means avec 4 clusters et introductions des centroides 
+kmeans_result_4_normalized <- kmeans(data_normalized, centers = 4, nstart = 1000)
+
+# Récupération des coordonnées des centroïdes
+centroids2 <- as.data.frame(kmeans_result_4_normalized$centers)
+
+# Renommer les colonnes pour correspondre aux axes du graphique
+colnames(centroids2) <- colnames(data_normalized)
+
+# Calcul des distances entre les centroïdes
+distances_between_centroids2 <- dist(centroids2)
+
+# Afficher les distances 
+print(distances_between_centroids2)
+
+# Convertir les distances en une matrice complète 
+dist_matrix2 <- as.matrix(distances_between_centroids2)
+
+# Visualisation des clusters et superposition des centroïdes
+fviz_cluster(kmeans_result_4_normalized, 
+             data = data_normalized, 
+             geom = "point", 
+             main = "K-means avec 4 clusters sur données normalisées") +
+  geom_point(data = centroids2, 
+             aes(x = centroids2[[1]], y = centroids2[[2]]), 
+             color = "red", 
+             size = 4, 
+             shape = 8) # Superposition des centroïdes
+
+# Afficher la matrice complète 
+print(dist_matrix2)
+
+
+
+
+
+
+
+
 
 # Ajouter les clusters aux données normalisées
 data_with_clusters <- data.frame(data_normalized, cluster = factor(kmeans_result$cluster))
@@ -180,15 +218,4 @@ for (i in 1:4) {  # 4 correspond au nombre de clusters
   #  Enregistrer les données du cluster dans un fichier CSV
   # write.csv(cluster_data, paste0("cluster_", i, ".csv"), row.names = FALSE)
 }
-
-
-
-
-
-
-
-
-
-
-
 
